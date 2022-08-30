@@ -1,0 +1,2 @@
+Save .hdf5 databases of datasets in this dir
+Naming convention {dataset}_data.hdf5
