@@ -13,7 +13,7 @@ def load_model(args, model_cat, mode='eval', device='cpu', frozen=False):
     if model_cat in ['ipu','finetune']:
         net = load_pretrained_model(args, model_cat, device=device, frozen=frozen)
     else:
-        sys.path.insert(0, '/people/herm379/exalearn/IPU_trained_models/pnnl_sandbox/schnet')
+        sys.path.insert(0, '../schnet')
 
         from model import SchNet
         
@@ -33,12 +33,11 @@ def load_pretrained_model(args, model_cat='', device='cpu', frozen=False):
     """
     device = torch.device(device)
     
-    #TODO: multifi model won't work with imports done this way for IPU+finetune
     # load codebase depending on model_cat
     if model_cat == 'ipu':
-        sys.path.insert(0, '/qfs/projects/ecp_exalearn/designs/NN_TBPMC/IPU_trained_models/pnnl_sandbox/schnet')
+        sys.path.insert(0, '../schnet-ipu')
     else:
-        sys.path.insert(0, '/people/herm379/exalearn/IPU_trained_models/pnnl_sandbox/schnet')
+        sys.path.insert(0, '../schnet')
 
     from model import SchNet
     
