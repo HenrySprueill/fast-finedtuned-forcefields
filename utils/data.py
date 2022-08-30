@@ -44,44 +44,35 @@ def dataloader(datasets,
 
     return loader
 
-#TODO all of batch_dataloader (single, train val, multiple examines
-def batch_dataloader(args, datasets,
-               modes=['train','val','examine'],
-               split = '00', 
-               batch = 256,
-               shuffle=True,
-               splitdir = './data/splits/',
-               datadir = './data/cached_dataset/'
-               ):
+def bulk_dataloader(args,
+                    split = '00',
+                    batch = 256,
+                    shuffle=True):
     """
-    dataset = str or list of str for each dataset label ['min', 'nonmin']
-    mode = ['train','val','examine','test']
+    Returns train, val, and list of examine loaders
     """
 
-    if isinstance(args.datasets, list):
-        data = []
-        for ds in args.datasets:
-            dataset = PrepackedDataset(None, 
-                                       op.join(args.savedir,f'split_{split}_{ds}.npz'), 
-                                       ds, 
-                                       directory=datadir)
-            
-            data.append(dataset.load_data(mode))
-            
-        loader = DataLoader(ConcatDataset(data), batch_size=batch, shuffle=shuffle)
-        
-    else:
-        dataset = PrepackedDataset(None, 
-                                   op.join(args.savedir,f'split_{split}_{args.datasets}.npz'), 
-                                   datasets, 
-                                   directory=datadir)
-        data = dataset.load_data(mode)
+    if not isinstance(args.datasets, list):
+        args.datasets = [args.datasets]
 
-        batch_size = batch if len(data) > batch else len(data)
-        loader = DataLoader(data, batch_size=batch_size, shuffle=shuffle)
+    train_data = []
+    val_data = []
+    examine_data = []
+    for ds in args.datasets:
+        dataset = PrepackedDataset(None,
+                                   op.join(args.savedir,f'split_{split}_{ds}.npz'),
+                                   ds,
+                                   directory=args.datadir)
 
-    return loader
+        train_data.append(dataset.load_data('train'))
+        val_data.append(dataset.load_data('val'))
+        examine_data.append(dataset.load_data('examine'))
 
+    train_loader = DataLoader(ConcatDataset(train_data), batch_size=batch, shuffle=shuffle)
+    val_loader = DataLoader(ConcatDataset(val_data), batch_size=batch, shuffle=shuffle)
+    examine_loaders = [DataLoader(ed, batch_size=batch, shuffle=shuffle) for ed in examine_data]
+
+    return train_loader, val_loader, examine_loaders
 
 def test_dataloader(model_cat, 
                     dataset,

@@ -75,13 +75,9 @@ else:
                     os.path.join(args.savedir, f'split_00_{args.datasets}.npz'))
 
 # load datasets/dataloaders
-# TODO, load train, val, examine simultaneously for speedups -- pass mode as list
-train_loader = data.dataloader(args.datasets, mode='train')
-val_loader = data.dataloader(args.datasets, mode='val')
-examine_loaders = [data.dataloader(dataset, mode='examine') for dataset in args.datasets]
+train_loader, val_loader, examine_loaders = data.bulk_dataloader(args, split='00')
 
 # load model
-# TODO: add multifi model loader into models.load_model
 net = models.load_model(args, args.model_cat, device=device)
 logging.info(f'model loaded from {args.start_model}')
 
@@ -91,8 +87,6 @@ scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=5, fa
 
 
 # train
-#al_step = 0
-#number_added = args.al_threshold + 10
 n_epochs = args.n_epochs_initial
 total_epochs = 0
 
@@ -114,8 +108,6 @@ for al_step in range(args.n_al_iters):
         scheduler.step(val_loss)
         
         # log training info
-        #writer.add_scalar(f'epoch_loss/train', train_loss, total_epochs)
-        #writer.add_scalar(f'epoch_loss/val', val_loss, total_epochs)
         writer.add_scalar(f'learning_rate', optimizer.param_groups[0]["lr"], total_epochs)
         
         # on same plot
@@ -127,8 +119,6 @@ for al_step in range(args.n_al_iters):
     if args.save_models:
         torch.save(net.state_dict(), os.path.join(args.savedir, f'finetune_ttm_alstep{al_step}.pt'))
         
-    #writer.add_scalar(f'iteration_loss/train', train_loss, al_step)
-    #writer.add_scalar(f'iteration_loss/val', val_loss, al_step)
     # on same plot
     writer.add_scalars('iteration_loss', {'train':train_loss,'val':val_loss}, al_step)
         
@@ -152,20 +142,13 @@ for al_step in range(args.n_al_iters):
         # store sample addition info
         add_dict[dataset]=len(idx_to_add)
         
-        #n_add += len(idx_to_add)
-    #number_added = n_add
-    
     # log sample addition info
     writer.add_scalars('samples_added', add_dict, al_step)
     
-    
     # Process new train and examine datasets
-    #TODO get train and examine loaders simultaneously
-    train_loader = data.dataloader(args.datasets, mode='train', split=str(al_step+1).zfill(2), splitdir=args.savedir)
-    examine_loaders = [data.dataloader(dataset, mode='examine', split=str(al_step+1).zfill(2), splitdir=args.savedir) for dataset in args.datasets]
+    train_loader, _, examine_loaders = data.bulk_dataloader(args, split=str(al_step+1).zfill(2))
     
     logging.info(f'iteration {al_step} complete')
-    #al_step += 1
     
     n_epochs = args.n_epochs_al
         
@@ -186,8 +169,6 @@ for i in range(args.n_epochs_end):
     scheduler.step(val_loss)
     
     # log training info
-    #writer.add_scalar(f'epoch_loss/train', train_loss, total_epochs)
-    #writer.add_scalar(f'epoch_loss/val', val_loss, total_epochs)
     writer.add_scalars('epoch_loss', {'train':train_loss,'val':val_loss}, total_epochs)
     writer.add_scalar(f'learning_rate', optimizer.param_groups[0]["lr"], total_epochs)
     
