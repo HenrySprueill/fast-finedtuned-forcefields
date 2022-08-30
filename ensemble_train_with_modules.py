@@ -8,7 +8,7 @@ import csv
 import argparse
 from torch.utils.tensorboard import SummaryWriter
 
-from utils import data, models, train, eval, split, hooks
+from utils import data, models, ensemble_train, ensemble_eval, split, hooks
 
 # import path arguments
 parser = argparse.ArgumentParser()
@@ -75,52 +75,7 @@ else:
                     os.path.join(args.savedir, f'split_00_{args.datasets}.npz'))
 
 # load datasets/dataloaders
-train_loader, val_loader, examine_loaders = data.bulk_dataloader(args, split='00')
-
-# load model
-net = models.load_model(args, args.model_cat, device=device)
-logging.info(f'model loaded from {args.start_model}')
-
-#initialize optimizer and LR scheduler
-optimizer = torch.optim.Adam(net.parameters(), lr=args.start_lr)
-scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=5, factor=0.8, min_lr=0.000001)
-
-
-# train
-n_epochs = args.n_epochs_initial
-total_epochs = 0
-
-logging.info('beginning training...')
-#while number_added > args.al_threshold:
-for al_step in range(args.n_al_iters):
-    logging.info(f'beginning active learning interation {al_step}')
-    for e in range(n_epochs):
-        # train model
-        #TODO: allow option to get MAE and STD from EITHER train or val
-        train_loss = train.train_energy_forces(net, train_loader, optimizer, args.energy_coeff, device)
-        
-        # get validation set loss
-        if e == n_epochs-1 and args.mae_std_from_val == True:
-            val_loss, mae, std = train.get_pred_loss(net, val_loader, optimizer, args.energy_coeff, device, val=True)
-        else:
-            val_loss = train.get_pred_loss(net, val_loader, optimizer, args.energy_coeff, device)
-            
-        scheduler.step(val_loss)
-        
-        # log training info
-        writer.add_scalar(f'learning_rate', optimizer.param_groups[0]["lr"], total_epochs)
-        
-        # on same plot
-        writer.add_scalars('epoch_loss', {'train':train_loss,'val':val_loss}, total_epochs)
-        
-        total_epochs+=1
-                
-    # Save current model
-    if args.save_models:
-        torch.save(net.state_dict(), os.path.join(args.savedir, f'finetune_ttm_alstep{al_step}.pt'))
-        
-    # on same plot
-    writer.add_scalars('iteration_loss', {'train':train_loss,'val':val_loss}, al_step)
+##TODO ADD FUNCTION TO TRAIN ENSEMBLES
         
     # select new samples to add from examine set
     logging.info('choosing structures to add to training set')

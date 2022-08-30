@@ -124,14 +124,12 @@ def select_samples_ensembles(examine_results,
 
 
 
-def get_pred_loss(model, loader, energy_coeff, device, val=False):
+def get_predictions(model, loader, device):
     """
-    Gets the total loss on the test/val datasets.
-    If validation set, then return MAE and STD also
+    Gets the model predictions on a data loader
     """
     model.eval()
-    total_ef_loss = []
-    all_errs = []
+    all_vals = []
     
     for data in loader:
         data = data.to(device)
@@ -139,30 +137,6 @@ def get_pred_loss(model, loader, energy_coeff, device, val=False):
         optimizer.zero_grad()
 
         e = model(data)
-        f = torch.autograd.grad(e, data.pos, grad_outputs=torch.ones_like(e), retain_graph=False)[0]
+        all_valls += e.tolist()
 
-        ef_loss, e_loss, f_loss = energy_forces_loss(data, e, f, energy_coeff)
-        with torch.no_grad():
-            total_ef_loss.append(ef_loss.item())
-        if val == True:
-            energies_loss = torch.abs(data.y - e)
-            f_red = torch.mean(torch.abs(data.f - f), dim=1)
-
-            f_mean = torch.zeros_like(e)
-            cluster_sizes = data['size'] #data.size
-            for i in range(len(e)):            #loop over all clusters in batch
-                energies_loss[i] /= cluster_sizes[i]
-                f_mean[i] = torch.mean(torch.abs(torch.tensor(f_red[torch.sum(cluster_sizes[0:i]):torch.sum(cluster_sizes[0:i+1])])))
-
-            total_err = (energy_coeff)*energies_loss + (1-energy_coeff)*f_mean
-            total_err = total_err.tolist()
-            all_errs += total_err
-    
-    ave_ef_loss = sum(total_ef_loss)/len(total_ef_loss)
-    
-    if val == False:
-        return ave_ef_loss
-    
-    else:
-        mae, stdvae = get_error_distribution(all_errs) #MAE and STD from EXAMINE SET
-        return ave_ef_loss, mae, stdvae
+    return all_vals
