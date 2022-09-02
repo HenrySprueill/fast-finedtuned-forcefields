@@ -83,12 +83,7 @@ else:
     n_add = 0
     add_dict={}
     for i, dataset in enumerate(args.datasets):
-        idx_to_add = train.get_idx_to_add(net, examine_loaders[i], optimizer,
-                                          mae, std, args.energy_coeff,
-                                          f'split_{str(al_step).zfill(2)}_{dataset}.npz', 
-                                          al_step, device, dataset, 
-                                          max_to_add = args.max_to_add,
-                                          savedir = args.savedir)
+        ###FILL THIS IN
         
         split.create_new_split(idx_to_add, args.n_to_examine[i], 
                                al_step, dataset, 
@@ -99,9 +94,6 @@ else:
         
     # log sample addition info
     writer.add_scalars('samples_added', add_dict, al_step)
-    
-    # Process new train and examine datasets
-    train_loader, _, examine_loaders = data.bulk_dataloader(args, split=str(al_step+1).zfill(2))
     
     logging.info(f'iteration {al_step} complete')
     

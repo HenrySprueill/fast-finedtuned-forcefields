@@ -33,9 +33,26 @@ def select_samples_ensembles(examine_results,
                              alpha,
                              num_resamples=10000,
                              cushion = 0,
-                             limit_clusters=-1,
                              shuffle_samples = False,
                              seed = None):
+    """
+    examine_results = (np.ndarray) examine_set predictions. (n_ensemble, n_examine),
+    
+    train_results = (np.ndarray) training_set predictions. (n_ensemble, n_train),
+    
+    batch_size = (int) size of the sub batches to split data into,
+    
+    alpha = significance level,
+    
+    num_resamples = (int) Number of times to permute batches,
+    
+    cushion = (float) value to make it harder to reject H_0 [T-cushion>=0]. 
+    Should be proportional to sqrt(batch_size),
+    
+    shuffle_samples = (bool) shuffle the examine_results for batching?,
+    
+    seed = (int) Random number seed
+    """
     if seed is not None:
         np.random.seed(seed)
     
@@ -120,6 +137,8 @@ def select_samples_ensembles(examine_results,
         p_residual = count_residuals/num_resamples
         if p_residual <= alpha:
             samples_to_keep += [idx for idx in residual_batch if examine_arr[idx] > np.mean(examine_arr[residual_batch])]
+            
+            
     return samples_to_keep#returns indeces of samples chosen to include in training
 
 
