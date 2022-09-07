@@ -118,9 +118,5 @@ class MultiFiSchNet(torch.nn.Module):
         y = torch.stack((y_low,y_dif), dim=1).view(-1,2)
         y = self.sum_layer(y)
         
-        return y
+        return y.T[0]
         
-    def to(self, device):
-        self.lowfi_model.to(device)
-        self.dif_model.to(device)
-        self.sum_layer.to(device)
