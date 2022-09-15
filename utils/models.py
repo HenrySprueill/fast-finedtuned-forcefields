@@ -79,9 +79,12 @@ class MultiFiSchNet(torch.nn.Module):
         """
         :param model_path (str): Path to trained model
         :param device (str): Device to run model on ['cpu', 'cuda']
-
         """
         super().__init__()
+        
+        sys.path.insert(0, '/people/herm379/exalearn/IPU_trained_models/pnnl_sandbox/schnet')
+
+        from model import SchNet
         
         self.args = args
         
@@ -92,31 +95,38 @@ class MultiFiSchNet(torch.nn.Module):
         for param in self.lowfi_model.parameters():
             param.requires_grad = False
             
-        # load empty model with same architecture
-        copy_args = argparse.Namespace(**vars(args))
-        copy_args.load_state = False
-        self.dif_model = load_pretrained_model(copy_args, model_cat='finetune', device=device)
+        # load empty model with smaller architecture
+        state=torch.load(args.start_model, map_location=torch.device(device))
+        num_gaussians = state['basis_expansion.offset'].shape[0]
+        num_filters = state['interactions.0.mlp.0.weight'].shape[0]
+        num_interactions = len([key for key in state.keys() if '.lin.bias' in key])
+        
+        self.dif_model = SchNet(num_features = int(num_filters/2),
+                     num_interactions = int((num_interactions+1)/2),
+                     num_gaussians = num_gaussians,
+                     cutoff = 6.0)
+        
+        self.dif_model.to(device)
         
         # correlation/sum layer 
-        self.sum_layer = nn.Linear(2, 1, bias=False, device=device)
+        self.correlation = nn.Linear(1, 1, bias=False, device=device)
         
-        for p in self.sum_layer.parameters():
+        for p in self.correlation.parameters():
             p.register_hook(lambda grad: torch.clamp(grad, -args.clip_value, args.clip_value))
 
 
     def forward(self, data):
         """
         Forward pass of the SchNet model
-
         :param data: data from data loader
         """     
         
-        y_low = self.lowfi_model(data)
+        y_low = self.correlation(self.lowfi_model(data).view(-1,1)).T[0]
         y_dif = self.dif_model(data)
         
         # interleave y_low and y_dif
         y = torch.stack((y_low,y_dif), dim=1).view(-1,2)
-        y = self.sum_layer(y)
+        y = torch.sum(y, dim=1)
         
-        return y.T[0]
+        return y
         
