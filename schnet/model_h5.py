@@ -36,6 +36,8 @@ class SchNet(nn.Module):
                  num_interactions: int = 4,
                  num_gaussians: int = 25,
                  cutoff: float = 6.0,
+                 mean: Optional[float] = None,
+                 std: Optional[float] = None,
                  batch_size: Optional[int] = None):
         """
         :param num_features (int): The number of hidden features used by both
@@ -49,6 +51,10 @@ class SchNet(nn.Module):
             (default: 6.0).
         :param batch_size (int, optional): The number of molecules in the batch.
             This can be inferred from the batch input when not supplied.
+        :param mean (float, optional): The mean of the property to predict.
+            (default: :obj:`None`)
+        :param std (float, optional): The standard deviation of the property to
+            predict. (default: :obj:`None`)
         """
         super().__init__()
         self.num_features = num_features
@@ -56,6 +62,8 @@ class SchNet(nn.Module):
         self.num_gaussians = num_gaussians
         self.cutoff = cutoff
         self.batch_size = batch_size
+        self.mean = mean
+        self.std = std
 
         self.atom_embedding = nn.Embedding(100,
                                            self.num_features,
@@ -161,6 +169,9 @@ class SchNet(nn.Module):
         h = self.lin1(h)
         h = self.act(h)
         h = self.lin2(h)
+        
+        if self.mean is not None and self.std is not None:
+            h = h * self.std + self.mean
 
         mask = (z == 0).view(-1, 1)
         h = h.masked_fill(mask.expand_as(h), 0.)
