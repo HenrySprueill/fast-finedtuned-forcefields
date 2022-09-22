@@ -36,9 +36,10 @@ class SchNet(nn.Module):
                  num_interactions: int = 4,
                  num_gaussians: int = 25,
                  cutoff: float = 6.0,
+                 batch_size: Optional[int] = None,
                  mean: Optional[float] = None,
                  std: Optional[float] = None,
-                 batch_size: Optional[int] = None):
+                 atomref: Optional[torch.Tensor] = None):
         """
         :param num_features (int): The number of hidden features used by both
             the atomic embedding and the convolutional filters (default: 128).
@@ -55,6 +56,9 @@ class SchNet(nn.Module):
             (default: :obj:`None`)
         :param std (float, optional): The standard deviation of the property to
             predict. (default: :obj:`None`)
+        :param atomref (torch.Tensor, optional): The reference of single-atom
+            properties.
+            Expects a vector of shape :obj:`(max_atomic_number, )`.
         """
         super().__init__()
         self.num_features = num_features
@@ -81,6 +85,12 @@ class SchNet(nn.Module):
         self.lin1 = nn.Linear(self.num_features, self.num_features // 2)
         self.act = ShiftedSoftplus()
         self.lin2 = nn.Linear(self.num_features // 2, 1)
+        
+        self.register_buffer('initial_atomref', atomref)
+        self.atomref = None
+        if atomref is not None:
+            self.atomref = Embedding(100, 1)
+            self.atomref.weight.data.copy_(atomref)
 
         self.reset_parameters()
 
@@ -123,6 +133,8 @@ class SchNet(nn.Module):
         zeros_(self.lin1.bias)
         xavier_uniform_(self.lin2.weight)
         zeros_(self.lin2.bias)
+        if self.atomref is not None:
+            self.atomref.weight.data.copy_(self.initial_atomref)
 
     def forward(self, z, pos, batch):#edge_weight, edge_index, batch, energy_target=None):
         """
@@ -172,6 +184,9 @@ class SchNet(nn.Module):
         
         if self.mean is not None and self.std is not None:
             h = h * self.std + self.mean
+            
+        if self.atomref is not None:
+            h = h + self.atomref(z)
 
         mask = (z == 0).view(-1, 1)
         h = h.masked_fill(mask.expand_as(h), 0.)
