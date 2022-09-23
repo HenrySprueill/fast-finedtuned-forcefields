@@ -28,7 +28,7 @@ def dataloader(datasets,
                                        directory=datadir)
             data.append(dataset.load_data(mode))
             
-        loader = DataListLoader(ConcatDataset(data), batch_size=batch, shuffle=shuffle, num_workers=4)
+        loader = DataListLoader(ConcatDataset(data), batch_size=batch, shuffle=shuffle)
         
     else:
         dataset = PrepackedDataset(None, 
@@ -40,7 +40,7 @@ def dataloader(datasets,
         print(f'{datasets} data loaded from {datadir}')
 
         batch_size = batch if len(data) > batch else len(data)
-        loader = DataListLoader(data, batch_size=batch_size, shuffle=shuffle, num_workers=4)
+        loader = DataListLoader(data, batch_size=batch_size, shuffle=shuffle)
 
     return loader
 
@@ -67,9 +67,9 @@ def bulk_dataloader(args,
         val_data.append(dataset.load_data('val'))
         examine_data.append(dataset.load_data('examine'))
 
-    train_loader = DataListLoader(ConcatDataset(train_data), batch_size=args.batch_size, shuffle=shuffle, num_workers=4)
-    val_loader = DataListLoader(ConcatDataset(val_data), batch_size=args.batch_size, shuffle=shuffle, num_workers=4)
-    examine_loaders = [DataListLoader(ed, batch_size=args.batch_size, shuffle=shuffle, num_workers=4) for ed in examine_data]
+    train_loader = DataListLoader(ConcatDataset(train_data), batch_size=args.batch_size, shuffle=shuffle)
+    val_loader = DataListLoader(ConcatDataset(val_data), batch_size=args.batch_size, shuffle=shuffle)
+    examine_loaders = [DataListLoader(ed, batch_size=args.batch_size, shuffle=shuffle) for ed in examine_data]
 
     return train_loader, val_loader, examine_loaders
 
