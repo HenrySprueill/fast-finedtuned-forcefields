@@ -28,7 +28,7 @@ def dataloader(datasets,
                                        directory=datadir)
             data.append(dataset.load_data(mode))
             
-        loader = DataListLoader(ConcatDataset(data), batch_size=batch, shuffle=shuffle, num_workers=4, pin_memory=True)
+        loader = DataListLoader(ConcatDataset(data), batch_size=batch, shuffle=shuffle, num_workers=4)
         
     else:
         dataset = PrepackedDataset(None, 
@@ -40,13 +40,12 @@ def dataloader(datasets,
         print(f'{datasets} data loaded from {datadir}')
 
         batch_size = batch if len(data) > batch else len(data)
-        loader = DataListLoader(data, batch_size=batch_size, shuffle=shuffle, num_workers=4, pin_memory=True)
+        loader = DataListLoader(data, batch_size=batch_size, shuffle=shuffle, num_workers=4)
 
     return loader
 
 def bulk_dataloader(args,
                     split = '00',
-                    batch = 256,
                     shuffle=True):
     """
     Returns train, val, and list of examine loaders
@@ -68,9 +67,9 @@ def bulk_dataloader(args,
         val_data.append(dataset.load_data('val'))
         examine_data.append(dataset.load_data('examine'))
 
-    train_loader = DataListLoader(ConcatDataset(train_data), batch_size=batch, shuffle=shuffle, num_workers=4, pin_memory=True)
-    val_loader = DataListLoader(ConcatDataset(val_data), batch_size=batch, shuffle=shuffle, num_workers=4, pin_memory=True)
-    examine_loaders = [DataListLoader(ed, batch_size=batch, shuffle=shuffle, num_workers=4, pin_memory=True) for ed in examine_data]
+    train_loader = DataListLoader(ConcatDataset(train_data), batch_size=args.batch_size, shuffle=shuffle, num_workers=4)
+    val_loader = DataListLoader(ConcatDataset(val_data), batch_size=args.batch_size, shuffle=shuffle, num_workers=4)
+    examine_loaders = [DataListLoader(ed, batch_size=args.batch_size, shuffle=shuffle, num_workers=4) for ed in examine_data]
 
     return train_loader, val_loader, examine_loaders
 
