@@ -47,3 +47,21 @@ def create_init_split(n_train, val_frac, test_frac, n_to_examine, num_clusters, 
              train_idx=train_idx, examine_idx=examine_idx,
              reserve_idx=reserve_idx, val_idx=val_idx, 
              test_idx=test_idx)
+
+
+def new_init_split(args, dataset):
+    """
+    Single train/val/test/examine split for all datasets
+    """
+    cluster_list = np.random.permutation(args.n_total) 
+    train_idx = cluster_list[0:args.n_train]
+    val_idx = cluster_list[args.n_train:(args.n_train+args.n_val)]
+    test_idx = cluster_list[(args.n_train+args.n_val):(args.n_train+args.n_val+args.n_test)]
+    examine_idx = cluster_list[(args.n_train+args.n_val+args.n_test):(args.n_train+args.n_val+args.n_test+args.n_examine)]
+    reserve_idx = cluster_list[(args.n_train+args.n_val+args.n_test+args.n_examine):]
+    np.savez(os.path.join(args.savedir, f'split_00_{dataset}.npz'),
+             train_idx=train_idx, 
+             examine_idx=examine_idx,
+             reserve_idx=reserve_idx,
+             val_idx=val_idx,
+             test_idx=test_idx)

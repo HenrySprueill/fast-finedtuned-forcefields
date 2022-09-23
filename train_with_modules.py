@@ -7,7 +7,7 @@ import json
 import csv
 import argparse
 from torch.utils.tensorboard import SummaryWriter
-
+from torch_geometric.nn import DataParallel
 from utils import data, models, train, eval, split, hooks
 
 # import path arguments
@@ -79,6 +79,7 @@ train_loader, val_loader, examine_loaders = data.bulk_dataloader(args, split='00
 
 # load model
 net = models.load_model(args, args.model_cat, device=device)
+net = DataParallel(net)
 logging.info(f'model loaded from {args.start_model}')
 
 #initialize optimizer and LR scheduler
@@ -97,13 +98,13 @@ for al_step in range(args.n_al_iters):
     for e in range(n_epochs):
         # train model
         #TODO: allow option to get MAE and STD from EITHER train or val
-        train_loss = train.train_energy_forces(net, train_loader, optimizer, args.energy_coeff, device)
+        train_loss = train.train_energy_forces(args, net, train_loader, optimizer, args.energy_coeff, device)
         
         # get validation set loss
         if e == n_epochs-1 and args.mae_std_from_val == True:
-            val_loss, mae, std = train.get_pred_loss(net, val_loader, optimizer, args.energy_coeff, device, val=True)
+            val_loss, mae, std = train.get_pred_loss(args, net, val_loader, optimizer, args.energy_coeff, device, val=True)
         else:
-            val_loss = train.get_pred_loss(net, val_loader, optimizer, args.energy_coeff, device)
+            val_loss = train.get_pred_loss(args, net, val_loader, optimizer, args.energy_coeff, device)
             
         scheduler.step(val_loss)
         
@@ -163,8 +164,8 @@ early_stopping = hooks.EarlyStopping(patience=10, verbose=True,
                                      trace_func=logging.info)
 
 for i in range(args.n_epochs_end):
-    train_loss = train.train_energy_forces(net, train_loader, optimizer, args.energy_coeff, device)
-    val_loss = train.get_pred_loss(net, val_loader, optimizer, args.energy_coeff, device)
+    train_loss = train.train_energy_forces(args, net, train_loader, optimizer, args.energy_coeff, device)
+    val_loss = train.get_pred_loss(args, net, val_loader, optimizer, args.energy_coeff, device)
 
     scheduler.step(val_loss)
     
