@@ -89,7 +89,7 @@ class SchNet(nn.Module):
         self.register_buffer('initial_atomref', atomref)
         self.atomref = None
         if atomref is not None:
-            self.atomref = Embedding(100, 1)
+            self.atomref = nn.Embedding(100, 1)
             self.atomref.weight.data.copy_(atomref)
 
         self.reset_parameters()
@@ -184,9 +184,10 @@ class SchNet(nn.Module):
         
         if self.mean is not None and self.std is not None:
             h = h * self.std + self.mean
+            print('here')
             
         if self.atomref is not None:
-            h = h + self.atomref(z)
+            h = h + self.initial_atomref(z)
 
         mask = (z == 0).view(-1, 1)
         h = h.masked_fill(mask.expand_as(h), 0.)
