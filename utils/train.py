@@ -204,15 +204,16 @@ def get_idx_to_add(model, examine_loader, optimizer,
             d.to(e.device)
             e_tmp = model.module(d).view(-1)
             f = torch.autograd.grad(e_tmp, d.pos, grad_outputs=torch.ones_like(e_tmp), create_graph=False)[0]
+            cluster_sizes = d['size']
 
-        f = torch.autograd.grad(e, data.pos, grad_outputs=torch.ones_like(e), retain_graph=False)[0]
+        #f = torch.autograd.grad(e, data.pos, grad_outputs=torch.ones_like(e), retain_graph=False)[0]
         y = torch.cat([d.y for d in data]).to(device)
         f_true  = torch.cat([d.f for d in data]).to(device)
         energies_loss = torch.abs(y - e)
         f_red = torch.mean(torch.abs(f_true - f), dim=1)
 
         f_mean = torch.zeros_like(e)
-        cluster_sizes = data['size'] #data.size
+        #cluster_sizes = [d['size'] for d in data] #data.size
         for i in range(len(e)):            #loop over all clusters in batch
             energies_loss[i] /= cluster_sizes[i]
             f_mean[i] = torch.mean(torch.abs(torch.tensor(f_red[torch.sum(cluster_sizes[0:i]):torch.sum(cluster_sizes[0:i+1])]))).clone().detach()
@@ -292,11 +293,15 @@ def get_pred_loss(args, model, loader, optimizer, energy_coeff, device, c=0.0000
         optimizer.zero_grad()
 
         e = model(data)
+
+        # all data loaded into non-parallel DataLoader (single batch)
         concat_loader = DataLoader(data, batch_size=len(data), shuffle=False)
         for d in concat_loader:
             d.to(e.device)
             e_tmp = model.module(d).view(-1)
             f = torch.autograd.grad(e_tmp, d.pos, grad_outputs=torch.ones_like(e_tmp), create_graph=False)[0]
+            cluster_sizes = d['size']
+            logging.info(cluster_sizes)
 
         ef_loss, e_loss, f_loss = energy_forces_loss(data, e, f, energy_coeff, e.device)
 
@@ -306,10 +311,11 @@ def get_pred_loss(args, model, loader, optimizer, energy_coeff, device, c=0.0000
             y = torch.cat([d.y for d in data]).to(device)
             f_true = torch.cat([d.f for d in data]).to(device)
             energies_loss = torch.abs(y - e)
+            logging.info(energies_loss)
             f_red = torch.mean(torch.abs(f_true - f), dim=1)
 
             f_mean = torch.zeros_like(e)
-            cluster_sizes = [d['size'] for d in data] 
+            #cluster_sizes = [d['size'] for d in data] 
             for i in range(len(e)):            #loop over all clusters in batch
                 energies_loss[i] /= cluster_sizes[i]
                 f_mean[i] = torch.mean(torch.abs(torch.tensor(f_red[torch.sum(cluster_sizes[0:i]):torch.sum(cluster_sizes[0:i+1])])))

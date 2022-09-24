@@ -98,7 +98,7 @@ for al_step in range(args.n_al_iters):
     for e in range(n_epochs):
         # train model
         #TODO: allow option to get MAE and STD from EITHER train or val
-        train_loss = train.train_energy_forces(args, net, train_loader, optimizer, args.energy_coeff, device)
+        train_loss, train_e_loss, train_f_loss = train.train_energy_forces(args, net, train_loader, optimizer, args.energy_coeff, device)
         
         # get validation set loss
         if e == n_epochs-1 and args.mae_std_from_val == True:
@@ -113,6 +113,9 @@ for al_step in range(args.n_al_iters):
         
         # on same plot
         writer.add_scalars('epoch_loss', {'train':train_loss,'val':val_loss}, total_epochs)
+
+        # write loss contributions for training loss
+        writer.add_scalars('train_loss_contributions', {'energy':train_e_loss,'forces':train_f_loss}, total_epochs)
         
         total_epochs+=1
                 
@@ -159,12 +162,12 @@ logging.info('beginning final training epochs')
 
 # implement early stopping
 # TODO add early stopping flags to args
-early_stopping = hooks.EarlyStopping(patience=10, verbose=True, 
+early_stopping = hooks.EarlyStopping(patience=20, verbose=True, 
                                      path = os.path.join(args.savedir, 'finetune_ttm_final.pt'),
                                      trace_func=logging.info)
 
 for i in range(args.n_epochs_end):
-    train_loss = train.train_energy_forces(args, net, train_loader, optimizer, args.energy_coeff, device)
+    train_loss, train_e_loss, train_f_loss = train.train_energy_forces(args, net, train_loader, optimizer, args.energy_coeff, device)
     val_loss = train.get_pred_loss(args, net, val_loader, optimizer, args.energy_coeff, device)
 
     scheduler.step(val_loss)
@@ -172,15 +175,16 @@ for i in range(args.n_epochs_end):
     # log training info
     writer.add_scalars('epoch_loss', {'train':train_loss,'val':val_loss}, total_epochs)
     writer.add_scalar(f'learning_rate', optimizer.param_groups[0]["lr"], total_epochs)
+    # write loss contributions for training loss
+    writer.add_scalars('train_loss_contributions', {'energy':train_e_loss,'forces':train_f_loss}, total_epochs)
     
     total_epochs+=1
     
     # check for stopping point
-    early_stopping(valid_loss, net)
+    early_stopping(val_loss, net)
     if early_stopping.early_stop:
         break
 
-#TODO assumes all AL steps were completed
 writer.add_scalars('iteration_loss', {'train':train_loss,'val':val_loss}, args.n_al_iters+1)
 
 # save final model, saves in early stopping
