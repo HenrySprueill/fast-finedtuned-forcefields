@@ -29,9 +29,9 @@ def train_energy_only_single(args, model, loader, optimizer, energy_coeff, devic
     total_e_loss = []
 
     for data in loader:
+        optimizer.zero_grad()
         e = model(data)
-        y = torch.cat([d.y for d in data]).to(e.device)
-        e_loss = F.mse_loss(e.view(-1), y.view(-1), reduction="sum")
+        e_loss = F.mse_loss(e.view(-1), data.y.view(-1), reduction="sum")
 
         with torch.no_grad():
             total_e_loss.append(e_loss.item())
@@ -51,6 +51,7 @@ def train_energy_only(args, model, loader, optimizer, energy_coeff, device, clip
     total_e_loss = []
 
     for data in loader:
+        optimizer.zero_grad()
         e = model(data)
         y = torch.cat([d.y for d in data]).to(e.device)
         e_loss = F.mse_loss(e.view(-1), y.view(-1), reduction="sum")
@@ -73,14 +74,13 @@ def train_energy_forces_single(model, loader, optimizer, energy_coeff, device, c
     total_ef_loss = []
 
     for data in loader:
-        #data = data.to(device)
+        data = data.to(device)
         data.pos.requires_grad = True
         optimizer.zero_grad()
         e = model(data)
-        device = e.device
         f = torch.autograd.grad(e, data.pos, grad_outputs=torch.ones_like(e), retain_graph=True)[0]
 
-        ef_loss, e_loss, f_loss = energy_forces_loss(data, e, f, energy_coeff, e.device)
+        ef_loss, e_loss, f_loss = energy_forces_loss(data, e, f, energy_coeff, device)
         
         with torch.no_grad():
             total_ef_loss.append(ef_loss.item())
@@ -308,8 +308,8 @@ def get_pred_loss(args, model, loader, optimizer, energy_coeff, device, c=0.0000
         with torch.no_grad():
             total_ef_loss.append(ef_loss.item())
         if val == True:
-            y = torch.cat([d.y for d in data]).to(device)
-            f_true = torch.cat([d.f for d in data]).to(device)
+            y = torch.cat([d.y for d in data]).to(e.device)
+            f_true = torch.cat([d.f for d in data]).to(e.device)
             energies_loss = torch.abs(y - e)
             logging.info(energies_loss)
             f_red = torch.mean(torch.abs(f_true - f), dim=1)
