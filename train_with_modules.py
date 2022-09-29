@@ -46,6 +46,19 @@ args.model_cat = model_cat
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 logging.info(f'model will be trained on {device}')
 
+# increase batch size based on the number of GPUs
+if device == 'cuda':
+    n_gpus = torch.cuda.device_count()
+    args.batch_size = int(n_gpus * args.batch_size)
+    logging.info(f'... {n_gpus} found, multipying batch size accordingly (batch size now {args.batch_size})')
+
+
+# increase batch size based on the number of GPUs
+if device == 'cuda':
+    n_gpus = torch.cuda.device_count()
+    args.batch_size = int(n_gpus * args.batch_size)
+    logging.info(f'... {n_gpus} found, multipying batch size accordingly (batch size now {args.batch_size})')
+
 # get initial train, val, examine splits for dataset(s)
 if args.create_splits:
     logging.info('creating new split(s)')
