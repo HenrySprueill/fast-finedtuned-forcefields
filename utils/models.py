@@ -48,7 +48,7 @@ def load_pretrained_model(args, model_cat='', device='cpu', frozen=False):
     net = SchNet(num_features = num_filters,
                  num_interactions = num_interactions,
                  num_gaussians = num_gaussians,
-                 cutoff = 6.0)
+                 cutoff = 6.0, mean = args.mean, std=args.std)
     
     logging.info(f'model loaded from {args.start_model}')
     
@@ -216,6 +216,11 @@ class SchNet(nn.Module):
         h = self.lin1(h)
         h = self.act(h)
         h = self.lin2(h)
+
+
+        if self.mean is not None and self.std is not None:
+            h = h * self.std + self.mean
+
 
         mask = (data.z == 0).view(-1, 1)
         h = h.masked_fill(mask.expand_as(h), 0.)
