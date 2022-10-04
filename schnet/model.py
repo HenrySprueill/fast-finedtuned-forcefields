@@ -36,7 +36,10 @@ class SchNet(nn.Module):
                  num_interactions: int = 4,
                  num_gaussians: int = 25,
                  cutoff: float = 6.0,
-                 batch_size: Optional[int] = None):
+                 batch_size: Optional[int] = None,
+                 mean: Optional[float] = None,
+                 std: Optional[float] = None,
+                 atomref: Optional[torch.Tensor] = None):
         """
         :param num_features (int): The number of hidden features used by both
             the atomic embedding and the convolutional filters (default: 128).
@@ -49,6 +52,13 @@ class SchNet(nn.Module):
             (default: 6.0).
         :param batch_size (int, optional): The number of molecules in the batch.
             This can be inferred from the batch input when not supplied.
+        :param mean (float, optional): The mean of the property to predict.
+            (default: :obj:`None`)
+        :param std (float, optional): The standard deviation of the property to
+            predict. (default: :obj:`None`)
+        :param atomref (torch.Tensor, optional): The reference of single-atom
+            properties.
+            Expects a vector of shape :obj:`(max_atomic_number, )`.
         """
         super().__init__()
         self.num_features = num_features
@@ -56,6 +66,8 @@ class SchNet(nn.Module):
         self.num_gaussians = num_gaussians
         self.cutoff = cutoff
         self.batch_size = batch_size
+        self.mean = mean
+        self.std = std
 
         self.atom_embedding = nn.Embedding(100,
                                            self.num_features,
@@ -73,6 +85,12 @@ class SchNet(nn.Module):
         self.lin1 = nn.Linear(self.num_features, self.num_features // 2)
         self.act = ShiftedSoftplus()
         self.lin2 = nn.Linear(self.num_features // 2, 1)
+        
+        self.register_buffer('initial_atomref', atomref)
+        self.atomref = None
+        if atomref is not None:
+            self.atomref = nn.Embedding(100, 1)
+            self.atomref.weight.data.copy_(atomref)
 
         self.reset_parameters()
 
@@ -115,6 +133,8 @@ class SchNet(nn.Module):
         zeros_(self.lin1.bias)
         xavier_uniform_(self.lin2.weight)
         zeros_(self.lin2.bias)
+        if self.atomref is not None:
+            self.atomref.weight.data.copy_(self.initial_atomref)
 
     def forward(self, data):#z, pos, batch):#edge_weight, edge_index, batch, energy_target=None):
         """
@@ -161,6 +181,12 @@ class SchNet(nn.Module):
         h = self.lin1(h)
         h = self.act(h)
         h = self.lin2(h)
+        
+        if self.mean is not None and self.std is not None:
+            h = h * self.std + self.mean
+            
+        if self.atomref is not None:
+            h = h + self.initial_atomref(z)
 
         mask = (data.z == 0).view(-1, 1)
         h = h.masked_fill(mask.expand_as(h), 0.)

@@ -184,7 +184,6 @@ class SchNet(nn.Module):
         
         if self.mean is not None and self.std is not None:
             h = h * self.std + self.mean
-            print('here')
             
         if self.atomref is not None:
             h = h + self.initial_atomref(z)
