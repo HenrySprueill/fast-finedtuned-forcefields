@@ -17,6 +17,7 @@
     "n_to_examine": [200],
     "mean": "None",
     "std": "None",
+    "neighbor_method": "radius",
     "start_model": "./pretrained_models/2-7milweights",
     "load_model": false,
     "load_state": false,

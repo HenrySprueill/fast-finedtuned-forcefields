@@ -25,6 +25,9 @@ def load_model(args, model_cat, mode='eval', device='cpu', frozen=False):
         net = SchNet(num_features = args.num_features,
              num_interactions = args.num_interactions,
              num_gaussians = args.num_gaussians,
+             neighbor_method = args.neighbor_method,
+             mean = args.mean,
+             std = args.std,
              cutoff = args.cutoff)
         net.reset_parameters()
         net.to(device)
