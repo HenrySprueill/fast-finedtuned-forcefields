@@ -16,11 +16,22 @@ def load_model(args, model_cat, mode='eval', device='cpu', frozen=False):
     Load trained model for eval
     model_cat = ['ipu', 'finetune', 'multifi']
     """
-    
-    if model_cat in ['ipu','finetune']:
-        net = load_pretrained_model(args, model_cat, device=device, frozen=frozen)
+    if args.load_model:    
+        if model_cat in ['ipu','finetune']:
+            net = load_pretrained_model(args, model_cat, device=device, frozen=frozen)
+        else:
+            net = MultiFiSchNet(args, device = device)
     else:
-        net = MultiFiSchNet(args, device = device)
+        net = SchNet(num_features = args.num_features,
+             num_interactions = args.num_interactions,
+             num_gaussians = args.num_gaussians,
+             cutoff = args.cutoff)
+        net.reset_parameters()
+        net.to(device)
+        #register backward hook --> gradient clipping
+        if not frozen:
+            for p in net.parameters():
+                p.register_hook(lambda grad: torch.clamp(grad, -args.clip_value, args.clip_value))
     
     if mode=='eval':
         # set to eval mode
