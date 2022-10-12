@@ -2,6 +2,20 @@ import torch
 import numpy as np
 import pandas as pd
 
+torch.pi = torch.acos(torch.zeros(1)).item() * 2 
+
+def force_magnitude_error(actual, pred):
+    # ||f_hat|| - ||f||
+    return torch.sub(torch.norm(pred, dim=1), torch.norm(actual, dim=1))
+
+def force_angular_error(actual, pred):
+    # cos^-1( f_hat/||f_hat|| • f/||f|| ) / pi
+    # batched dot product obtained with torch.bmm(A.view(-1, 1, 3), B.view(-1, 3, 1))
+    
+    a = torch.norm(actual, dim=1)
+    p = torch.norm(pred, dim=1)
+    
+    return torch.div(torch.acos(torch.bmm(torch.div(actual.T, a).T.view(-1, 1, 3), torch.div(pred.T, p).T.view(-1, 3,1 )).view(-1)), torch.pi)
 
 def get_max_forces(data, forces):
     # data: data from DataLoader
