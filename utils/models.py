@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.init import xavier_uniform_, zeros_
 from torch_geometric.nn.models.schnet import GaussianSmearing, \
-    InteractionBlock#, ShiftedSoftplus
+    InteractionBlock, ShiftedSoftplus
 from torch_scatter.scatter import scatter_add
 from torch_geometric.nn import knn_graph, radius_graph
 import sys
@@ -84,32 +84,6 @@ def load_pretrained_model(args, device='cpu', frozen=False):
 
     return net
 
-class ShiftedSoftplus(torch.nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.shift = torch.log(torch.tensor(2.0)).item()
-
-    def forward(self, x):
-        return F.softplus(x) - self.shift
-
-class SSP(torch.nn.Module):
-    def __init__(self, beta=1, threshold=20):
-        super().__init__()
-        self.beta = beta
-        self.threshold = threshold
-        self.shift = F.softplus(torch.zeros(1), beta, threshold).item()
-    def forward(self, x):
-        return F.softplus(x, self.beta, self.threshold) - self.shift 
-
-
-class Sigmoid(torch.nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.shift = 20
-
-    def forward(self, x):
-        return F.sigmoid(x) * self.shift
-
 class SchNet(nn.Module):
     def __init__(self,
                  num_features: int = 100,
@@ -169,9 +143,7 @@ class SchNet(nn.Module):
             self.interactions.append(block)
 
         self.lin1 = nn.Linear(self.num_features, self.num_features // 2)
-        #self.act = ShiftedSoftplus()
-        #self.act = SSP(0.25, 20)
-        self.act = Sigmoid()
+        self.act = ShiftedSoftplus()
         self.lin2 = nn.Linear(self.num_features // 2, 1)
 
         self.reset_parameters()
