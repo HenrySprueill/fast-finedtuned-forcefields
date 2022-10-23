@@ -15,6 +15,45 @@ from torch_geometric.data import DataListLoader, DataLoader, InMemoryDataset, Da
 import h5py
 import logging
 
+
+class ProcessedDataset(torch.utils.data.Dataset):
+    """
+    Dataset class to use with already processed data
+    """
+    def __init__(self, dataset, split_file, mode):
+        """
+        dataset = path to dataset file (.hdf5)
+        split_file = path to file with initial splits (.npz)
+        mode = ['trian','val','test','examine']
+        """
+
+        with np.load(split_file) as S:
+            self.mode_idx = S[f'{mode}_idx']
+            
+        self.dataset = h5py.File(dataset, "r")
+
+    def __len__(self):
+        'Denotes the total number of samples'
+        return len(self.mode_idx)
+
+    def __getitem__(self, index):
+        'Generates one sample of data'
+        # Select sample
+        index = self.mode_idx[index]
+
+        # Load data and get label
+        cluster_size = self.dataset["size"][index][0]
+        z = torch.from_numpy(self.dataset["z"][index][:cluster_size*3])
+        x = torch.from_numpy(self.dataset["x"][index][:cluster_size*3])
+        pos = torch.from_numpy(self.dataset["pos"][index][:cluster_size*3])
+        pos.requires_grad = True
+        y = torch.from_numpy(self.dataset["y"][index])
+        f = torch.from_numpy(self.dataset["f"][index][:cluster_size*3])
+        size = torch.from_numpy(self.dataset["size"][index])
+
+        return Data(x=x, z=z, pos=pos, y=y, f=f, size=size)
+    
+
 class PrepackedDataset(torch.utils.data.Dataset):
     def __init__(self, loader_list, split_file, dataset_type, shuffle=True, mode="train", directory="./data/cached_dataset/"):
         self.dataset = []
@@ -82,12 +121,8 @@ class PrepackedDataset(torch.utils.data.Dataset):
         logging.info("Loading cached data from disk...")
         dataset = h5py.File(os.path.join(self.directory, f"{self.dataset_type}_data.hdf5"), "r")
 
-        if False: #popdist.isPopdistEnvSet():
-            self.dataset_size = len(dataset["z"]) // int(popdist.getNumTotalReplicas())
-            self.read_offset = popdist.getInstanceIndex() * self.dataset_size
-        else:
-            S = np.load(self.split_file)
-            self.mode_idx = S[f'{idx_type}_idx']
+        S = np.load(self.split_file)
+        self.mode_idx = S[f'{idx_type}_idx']
 
         data_list = []
         for i in range(len(self.mode_idx)):

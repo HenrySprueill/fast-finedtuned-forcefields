@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.init import xavier_uniform_, zeros_
 from torch_geometric.nn.models.schnet import GaussianSmearing, \
-    InteractionBlock, ShiftedSoftplus
+    InteractionBlock#, ShiftedSoftplus
 from torch_scatter.scatter import scatter_add
 from torch_geometric.nn import knn_graph, radius_graph
 import sys
@@ -17,10 +17,10 @@ def load_model(args, model_cat, mode='eval', device='cpu', frozen=False):
     model_cat = ['ipu', 'finetune', 'multifi']
     """
     if args.load_model:    
-        if model_cat in ['ipu','finetune']:
-            net = load_pretrained_model(args, model_cat, device=device, frozen=frozen)
+        if model_cat == 'multifi':
+            net = MultiFiSchNet(args, device=device)
         else:
-            net = MultiFiSchNet(args, device = device)
+            net = load_pretrained_model(args, device=device, frozen=frozen)
     else:
         net = SchNet(num_features = args.num_features,
              num_interactions = args.num_interactions,
@@ -31,6 +31,7 @@ def load_model(args, model_cat, mode='eval', device='cpu', frozen=False):
              cutoff = args.cutoff)
         net.reset_parameters()
         net.to(device)
+        
         #register backward hook --> gradient clipping
         if not frozen:
             for p in net.parameters():
@@ -43,8 +44,8 @@ def load_model(args, model_cat, mode='eval', device='cpu', frozen=False):
 
     return net
 
-# DONT CHANGE THIS ONE
-def load_pretrained_model(args, model_cat='', device='cpu', frozen=False):
+
+def load_pretrained_model(args, device='cpu', frozen=False):
     """
     Load single SchNet model
     """
@@ -53,6 +54,9 @@ def load_pretrained_model(args, model_cat='', device='cpu', frozen=False):
     # load state dict of trained model
     state=torch.load(args.start_model)
     
+    # remove module. from statedict keys (artifact of parallel gpu training)
+    state = {k.replace('module.',''):v for k,v in state.items()}
+        
     # extract model params from model state dict
     num_gaussians = state['basis_expansion.offset'].shape[0]
     num_filters = state['interactions.0.mlp.0.weight'].shape[0]
@@ -79,6 +83,32 @@ def load_pretrained_model(args, model_cat='', device='cpu', frozen=False):
             p.register_hook(lambda grad: torch.clamp(grad, -args.clip_value, args.clip_value))
 
     return net
+
+class ShiftedSoftplus(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.shift = torch.log(torch.tensor(2.0)).item()
+
+    def forward(self, x):
+        return F.softplus(x) - self.shift
+
+class SSP(torch.nn.Module):
+    def __init__(self, beta=1, threshold=20):
+        super().__init__()
+        self.beta = beta
+        self.threshold = threshold
+        self.shift = F.softplus(torch.zeros(1), beta, threshold).item()
+    def forward(self, x):
+        return F.softplus(x, self.beta, self.threshold) - self.shift 
+
+
+class Sigmoid(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.shift = 20
+
+    def forward(self, x):
+        return F.sigmoid(x) * self.shift
 
 class SchNet(nn.Module):
     def __init__(self,
@@ -139,7 +169,9 @@ class SchNet(nn.Module):
             self.interactions.append(block)
 
         self.lin1 = nn.Linear(self.num_features, self.num_features // 2)
-        self.act = ShiftedSoftplus()
+        #self.act = ShiftedSoftplus()
+        #self.act = SSP(0.25, 20)
+        self.act = Sigmoid()
         self.lin2 = nn.Linear(self.num_features // 2, 1)
 
         self.reset_parameters()
