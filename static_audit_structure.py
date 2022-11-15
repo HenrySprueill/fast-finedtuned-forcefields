@@ -6,6 +6,7 @@ import h5py
 from ase import Atoms 
 import argparse
 from multiprocessing import Pool
+from utils.graph import get_structure_metrics
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--model', required=True, type=str, help='Path to trained model to analyze.')
