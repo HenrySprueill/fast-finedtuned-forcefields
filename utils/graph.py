@@ -147,14 +147,8 @@ def get_structure_metrics(cluster):
     """
     labels = ['OH_cov', 'HOH_cov', 'OH_hbond', 'HOH_hbond', 'OHO_hbond', 'OO_hbond']
 
-    """
-    # get covalent bond distances and angles
-    HOH_covalent_angles = ana.get_values(ana.get_angles('H', 'O', 'H', unique=True))
-    """
-
     # convert to H-bonding graph
     G = create_graph(cluster)
-
 
     # get bond type (covalent or hydrogen) for each edge 
     bond_type=nx.get_edge_attributes(G,'label')
