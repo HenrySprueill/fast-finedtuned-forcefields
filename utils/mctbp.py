@@ -51,8 +51,8 @@ def run_sim(model, num_waters, steps, savedir, db_path, fmax=0.005, min_tol=1.8,
                     accept_move = move_acceptance(curr_e, new_e, new_cluster, opt_new_cluster, eff_temp, use_dsi=use_dsi)
                 except UnboundLocalError:
                     accept_move = move_acceptance(curr_e, new_e, new_cluster, opt_new_cluster, temp, use_dsi=use_dsi)
-                    bin_count = get_histogram_count(energy_list)
-                    eff_temp = calc_eff_temp(temp, bin_count)
+                bin_count = get_histogram_count(energy_list)
+                eff_temp = calc_eff_temp(temp, bin_count)
             else:
                 accept_move = move_acceptance(curr_e, new_e, temp)
 
